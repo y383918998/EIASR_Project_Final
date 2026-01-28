@@ -130,10 +130,16 @@ class VehicleDetector:
                     window = s_img[y:y+win[1], x:x+win[0]]
                     feat = self.hog.compute(window).flatten().reshape(1, -1)
                     
-                    # Get SVM score
-                    score = self.svm.predict(feat, flags=cv2.ml.STAT_MODEL_RAW_OUTPUT)[1][0][0]
-                    
-                    if score > self.config.score_threshold:
+                    # Predict label and decision margin (raw distance to hyperplane).
+                    _, pred = self.svm.predict(feat)
+                    pred_label = int(pred[0][0])
+                    raw_score = float(
+                        self.svm.predict(feat, flags=cv2.ml.STAT_MODEL_RAW_OUTPUT)[1][0][0]
+                    )
+                    margin = abs(raw_score)
+
+                    # Only keep positive predictions with sufficient margin.
+                    if pred_label == 1 and margin >= self.config.score_threshold:
                         ox, oy = int(x*scale), int(y*scale)
                         ow, oh = int(win[0]*scale), int(win[1]*scale)
                         
@@ -142,7 +148,7 @@ class VehicleDetector:
                         if self.config.focal_length_px:
                             dist = (self.config.focal_length_px * 1.8 / ow)
                             
-                        raw_dets.append(VehicleDetection((ox, oy, ow, oh), score, dist))
+                        raw_dets.append(VehicleDetection((ox, oy, ow, oh), margin, dist))
         
         # === NMS (Non-Maximum Suppression) ===
         raw_dets.sort(key=lambda x: x.score, reverse=True)
