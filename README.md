@@ -14,6 +14,7 @@ The system utilizes classical Computer Vision and Machine Learning techniques:
 
 Ensure your project directory is organized as follows before running any scripts:
 
+```text
 Project_final/
 │
 ├── prototype/              # Source Code Package
