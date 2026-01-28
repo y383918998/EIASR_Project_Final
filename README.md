@@ -1,29 +1,59 @@
-# EIASR_Project
-2025/2026 Project for EIASR, topic is "driving assistance"
+# EIASR Project (2025/2026)
+Driving assistance prototype for the EIASR course.
 
+## Repository layout (expected folders)
+```
+EIASR_Project_Final/
+├── kitti/                # KITTI dataset (images/ + labels/)
+├── models/               # Trained SVM models (vehicle_svm.xml)
+├── output/               # Demo outputs (debug images, annotated videos)
+├── prototype/            # Python pipeline code
+└── requirements.txt
+```
 
-## Python prototype
-A minimal Python prototype was added to align with the preliminary report requirements:
-- Lane detection with Gaussian smoothing, Canny edge extraction, ROI masking, and Hough line grouping followed by quadratic fitting and lane-type heuristics.
-- Vehicle detection hook using HOG features with an external linear SVM (optional) and monocular distance estimation using a pinhole model.
-
-### Installation
+## Setup
 ```bash
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-### Running on a video
+## Training the vehicle SVM
+Train using KITTI `images/train` + `labels/train` (YOLO format).
 ```bash
-python -m prototype.video_demo --video /path/to/kitti_clip.mp4 --focal 700 \
-    --svm /path/to/linear_svm.yml --output annotated.mp4 --display
+python -m prototype.train --kitti_root kitti --samples 20000
 ```
-- `--svm` is optional; when omitted, only lane overlays are produced.
-- `--focal` sets the focal length in pixels for distance estimation. Without it, distance fields remain empty.
-- Press `q` to stop when `--display` is enabled.
+The model is saved to `models/vehicle_svm.xml`.
 
-### Module overview
-- `prototype/config.py`: Configuration and calibration helpers.
-- `prototype/pipeline.py`: Lane detection, vehicle detection, and distance estimation pipeline.
-- `prototype/video_demo.py`: CLI wrapper to process and optionally save annotated videos.# EIASR_Project
+## Evaluating on KITTI validation set
+Evaluate using KITTI `images/val` + `labels/val`:
+```bash
+python -m prototype.evaluate --kitti_root kitti --model models/vehicle_svm.xml --samples 5000
+```
+This writes `confusion_matrix_val.png` in the repository root.
+
+## Running the demo
+### Single image (debug montage)
+```bash
+python -m prototype.demo --input "kitti/images/val/001576.png" --svm models/vehicle_svm.xml --display
+```
+The output montage is saved to `output/debug_001576.png`.
+
+### Video
+```bash
+python -m prototype.demo --input "kitti/videos/sample.mp4" --svm models/vehicle_svm.xml --display
+```
+The annotated video is saved to `output/processed_sample.mp4`.
+
+## Configuration tips
+- `prototype/config.py` contains all thresholds and parameters.
+- For vehicle detection, adjust `VehicleDetectionConfig.score_threshold` to control false positives
+  (higher values are stricter).
+- Lane detection uses ROI + Canny + Hough; adjust `LaneDetectionConfig` to tune line density.
+
+## Module overview
+- `prototype/config.py`: Configuration objects for lane/vehicle detection.
+- `prototype/pipeline.py`: Full pipeline (lane detection + vehicle detection + rendering).
+- `prototype/train.py`: SVM training for vehicle detection.
+- `prototype/evaluate.py`: Validation set evaluation and confusion matrix plotting.
+- `prototype/demo.py`: CLI for processing images/videos and generating debug montages.
