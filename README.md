@@ -48,6 +48,8 @@ Project_final/
 │
 └── 2.mp4                   # Test Video File
 
+```
+
 ## Installation
 
 ### 1. Environment Setup
