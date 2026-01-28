@@ -1,10 +1,11 @@
 """
-Evaluation script for Vehicle Detection SVM using KITTI Validation Set.
+Evaluation Script for Vehicle Detection SVM using KITTI Validation Set.
+
 Satisfies Project Requirement: 4. Results Evaluation
+Generates: Accuracy Score, Classification Report, and Confusion Matrix Plot.
 """
 import argparse
 import random
-import time
 from pathlib import Path
 from typing import List, Tuple
 
@@ -14,25 +15,24 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, ConfusionMatrixDisplay
 
 from .config import VehicleDetectionConfig
-# Reuse the IoU function and feature extraction from the training script
-from .train_svm import iou, extract_hog_features
+# Reuse utility functions to ensure consistency with training logic
+from .train import iou, extract_hog_features
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate trained SVM on KITTI Validation Set")
     parser.add_argument("--kitti_root", type=str, 
-                        default=r"D:\python_code\EIASR\prototype\kitti",
+                        default="kitti",
                         help="Path to KITTI root (must contain images/val and labels/val)")
-    parser.add_argument("--model", type=str, default="vehicle_svm.xml",
+    parser.add_argument("--model", type=str, default="models/vehicle_svm.xml",
                         help="Path to the trained SVM XML file")
-    # Using 5000 samples is enough for a good confusion matrix plot
     parser.add_argument("--samples", type=int, default=5000,
-                        help="Max validation samples to extract")
+                        help="Max validation samples to extract (5000 is sufficient for stats)")
     return parser.parse_args()
 
 def load_val_data(root_dir: str, config: VehicleDetectionConfig, max_samples: int) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """
-    Load data specifically from the 'val' subfolder.
-    Includes filtering (<32px) to match training logic for fair evaluation.
+    Loads validation data.
+    IMPORTANT: We apply the same <32px filter as training to ensure a fair evaluation.
     """
     root = Path(root_dir)
     img_dir = root / "images" / "val"
@@ -75,7 +75,7 @@ def load_val_data(root_dir: str, config: VehicleDetectionConfig, max_samples: in
                         
                         # --- Extract Positive Sample (Car) ---
                         if len(pos_patches) < max_samples:
-                            # CONSISTENCY: Filter small cars just like in training
+                            # CONSISTENCY CHECK: Filter small cars just like in training
                             if w_px < 32 or h_px < 32: continue 
 
                             x1, y1 = max(0, x_px), max(0, y_px)
@@ -133,7 +133,7 @@ def main():
         
     print(f"\nFinal Validation Set: {len(pos_imgs)} Cars, {len(neg_imgs)} Non-Cars")
     
-    # Labels
+    # Create Labels
     y_pos = np.ones(len(pos_imgs), dtype=np.int32)
     y_neg = -np.ones(len(neg_imgs), dtype=np.int32)
     X_images = pos_imgs + neg_imgs
