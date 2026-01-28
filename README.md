@@ -1,59 +1,117 @@
-# EIASR Project (2025/2026)
-Driving assistance prototype for the EIASR course.
+# EIASR Lane & Vehicle Detection System
 
-## Repository layout (expected folders)
-```
-EIASR_Project_Final/
-├── kitti/                # KITTI dataset (images/ + labels/)
-├── models/               # Trained SVM models (vehicle_svm.xml)
-├── output/               # Demo outputs (debug images, annotated videos)
-├── prototype/            # Python pipeline code
-└── requirements.txt
-```
+## Project Overview
+This project implements a robust Advanced Driver Assistance System (ADAS) prototype capable of detecting Lane Lines and Vehicles in video streams and static images.
 
-## Setup
-```bash
+The system utilizes classical Computer Vision and Machine Learning techniques:
+* Lane Detection: Canny Edge Detection, Hough Transform, and 2nd-order Polynomial Fitting.
+* Vehicle Detection: Histogram of Oriented Gradients (HOG) features combined with a Support Vector Machine (SVM) classifier using an RBF kernel.
+* Optimization: Implements "Safe Mode" ROI filtering and Absolute Margin Scoring (based on SVM decision boundaries) to minimize false positives on road textures while maintaining recall for legitimate vehicles.
+
+---
+
+## Directory Structure
+
+Ensure your project directory is organized as follows before running any scripts:
+
+Project_final/
+│
+├── prototype/              # Source Code Package
+│   ├── __init__.py         # Package initializer
+│   ├── config.py           # Configuration (Thresholds, ROI, Parameters)
+│   ├── pipeline.py         # Core Logic (Lane & Vehicle Detectors)
+│   ├── train.py            # SVM Training Script (RBF Kernel, C=10.0)
+│   ├── evaluate.py         # Model Evaluation Script
+│   └── demo.py             # Main Entry Point for Images/Videos
+│
+├── kitti/                  # Dataset Directory
+│   ├── images/             # train/val images
+│   └── labels/             # YOLO format labels
+│
+├── models/                 # Model Output Directory
+│   └── vehicle_svm.xml     # Trained SVM Model (Generated after training)
+│
+├── output/                 # Results Directory (Videos/Images/Plots)
+│
+└── 2.mp4                   # Test Video File
+
+---
+
+## Installation
+
+1. Environment Setup
+It is recommended to use a virtual environment to avoid path conflicts.
+
+# Create virtual environment
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
 
-## Training the vehicle SVM
-Train using KITTI `images/train` + `labels/train` (YOLO format).
-```bash
-python -m prototype.train --kitti_root kitti --samples 20000
-```
-The model is saved to `models/vehicle_svm.xml`.
+# Activate (Windows PowerShell)
+.\.venv\Scripts\activate
 
-## Evaluating on KITTI validation set
-Evaluate using KITTI `images/val` + `labels/val`:
-```bash
-python -m prototype.evaluate --kitti_root kitti --model models/vehicle_svm.xml --samples 5000
-```
-This writes `confusion_matrix_val.png` in the repository root.
+2. Install Dependencies
+pip install numpy opencv-python opencv-contrib-python matplotlib scikit-learn
 
-## Running the demo
-### Single image (debug montage)
-```bash
-python -m prototype.demo --input "kitti/images/val/001576.png" --svm models/vehicle_svm.xml --display
-```
-The output montage is saved to `output/debug_001576.png`.
+---
 
-### Video
-```bash
-python -m prototype.demo --input "kitti/videos/sample.mp4" --svm models/vehicle_svm.xml --display
-```
-The annotated video is saved to `output/processed_sample.mp4`.
+## Usage Guide
 
-## Configuration tips
-- `prototype/config.py` contains all thresholds and parameters.
-- For vehicle detection, adjust `VehicleDetectionConfig.score_threshold` to control false positives
-  (higher values are stricter).
-- Lane detection uses ROI + Canny + Hough; adjust `LaneDetectionConfig` to tune line density.
+1. Train the Vehicle Detector
+You must train the SVM model before running any detection. The script handles data augmentation and class balancing.
+* Kernel: RBF (Radial Basis Function)
+* Penalty (C): 10.0 (Strict mode to reduce road texture noise)
 
-## Module overview
-- `prototype/config.py`: Configuration objects for lane/vehicle detection.
-- `prototype/pipeline.py`: Full pipeline (lane detection + vehicle detection + rendering).
-- `prototype/train.py`: SVM training for vehicle detection.
-- `prototype/evaluate.py`: Validation set evaluation and confusion matrix plotting.
-- `prototype/demo.py`: CLI for processing images/videos and generating debug montages.
+python -m prototype.train --kitti_root "kitti"
+
+(Wait for the "Training finished" and "Model saved" success messages.)
+
+2. Evaluate Model Performance
+Verify accuracy and generate a confusion matrix on the validation set.
+
+python -m prototype.evaluate --kitti_root "kitti" --model "models/vehicle_svm.xml"
+
+(Check the output/ folder for the confusion matrix image.)
+
+3. Run Demo (Single Image Debugging)
+Analyzes a frame with "Quad-View" output (Edges, Hough Lines, ROI Mask, Final Result).
+
+python -m prototype.demo --input "kitti/images/val/000006.png" --svm "models/vehicle_svm.xml" --display
+
+(Result saved to: output/debug_000006.png)
+
+4. Run Demo (Video Processing)
+Process the test video with real-time lane tracking and vehicle distance estimation.
+
+python -m prototype.demo --input "2.mp4" --svm "models/vehicle_svm.xml" --display
+
+(Result saved to: output/processed_2.mp4)
+
+---
+
+## Configuration & Tuning
+
+The system parameters are centralized in "prototype/config.py".
+
+Vehicle Configuration:
+* score_threshold: Default is 1.0. 
+    This uses Absolute Margin Scoring. It means the SVM must be confident (distance from hyperplane > 1.0) to classify an object as a vehicle.
+    - Lower it (e.g., 0.5) if valid vehicles are being missed.
+    - Raise it (e.g., 1.5) if you see false positives on the road.
+* hog_win_size: Default 64x64.
+
+"Safe Mode" ROI (in pipeline.py):
+To prevent the model from mistaking road texture for vehicles, the code enforces a strict search area:
+* X-axis: Scans 2% to 98% of the image width (allows detecting cars at edges).
+* Y-axis: Scans 40% to 90% of the image height (skips sky and immediate foreground).
+
+---
+
+## Limitations
+
+* Truncated Vehicles: While the ROI has been widened, vehicles that are heavily cut off by the image frame may still be ignored due to HOG descriptor limitations.
+* Low Contrast Conditions: Dark vehicles on dark asphalt (e.g., black cars in shadows) typically generate weak gradients and may have lower detection recall.
+
+---
+
+## Author
+[Your Name / Student ID]
+EIASR Project - Final Submission
