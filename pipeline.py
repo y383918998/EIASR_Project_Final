@@ -130,10 +130,19 @@ class VehicleDetector:
                     window = s_img[y:y+win[1], x:x+win[0]]
                     feat = self.hog.compute(window).flatten().reshape(1, -1)
                     
-                    # Get SVM score
-                    score = self.svm.predict(feat, flags=cv2.ml.STAT_MODEL_RAW_OUTPUT)[1][0][0]
-                    
-                    if score > self.config.score_threshold:
+                    # Get SVM decision score + predicted label
+                    raw_score = float(
+                        self.svm.predict(feat, flags=cv2.ml.STAT_MODEL_RAW_OUTPUT)[1][0][0]
+                    )
+                    label = int(self.svm.predict(feat)[1][0][0])
+
+                    # Normalize score so that "vehicle" predictions are always positive
+                    # (OpenCV SVM can return inverted decision signs depending on training order).
+                    if label != 1:
+                        continue
+                    score = abs(raw_score)
+
+                    if score >= self.config.score_threshold:
                         ox, oy = int(x*scale), int(y*scale)
                         ow, oh = int(win[0]*scale), int(win[1]*scale)
                         

@@ -51,7 +51,7 @@ class VehicleDetectionConfig:
     svm_model_path: Optional[str] = "models/vehicle_svm.xml"
     
     # === Key Parameter ===
-    # 1.0 is the balanced threshold: filters noise while keeping most vehicles
+    # Threshold is applied to |decision score| for vehicle predictions.
     score_threshold: float = 0.8
     
     car_real_width_m: float = 1.8
